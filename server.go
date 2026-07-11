@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Hex-4/bramble/ai"
-	"github.com/Hex-4/bramble/config"
-	"github.com/Hex-4/bramble/scheduler"
-	"github.com/Hex-4/bramble/tools"
+	"github.com/Hex-4/bop/ai"
+	"github.com/Hex-4/bop/config"
+	"github.com/Hex-4/bop/scheduler"
+	"github.com/Hex-4/bop/tools"
 
 	"github.com/joho/godotenv"
 )
@@ -22,10 +22,10 @@ func runServer() {
 		os.Exit(1)
 	}
 
-	defaultHome := filepath.Join(userHome, ".bramble")
+	defaultHome := filepath.Join(userHome, ".bop")
 	configFile, err := config.Load(filepath.Join(defaultHome, "config.toml"))
 
-	configFile.BrambleDir = defaultHome
+	configFile.BopDir = defaultHome
 
 	if err != nil {
 		fmt.Println("error loading config:", err)

@@ -10,7 +10,7 @@ import (
 
 func CreateComposioSession() (string, error) {
 	body := map[string]any{
-		"user_id": "bramble",
+		"user_id": "bop",
 	}
 
 	jsonBody, err := json.Marshal(body)

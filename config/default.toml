@@ -1,5 +1,5 @@
-# 🥀 bramble configuration file
-# learn more at https://github.com/Hex-4/bramble
+# 🎵 bop configuration file
+# learn more at https://github.com/Hex-4/bop
 
 # ──────────────────────────────────────────────
 # agent configuration
@@ -23,7 +23,7 @@ provider = "openrouter"
 # for every conversation. be as detailed or as vague as you want
 system_prompt = "you are slopster. you are tired. you do the thing, while speaking in all lowercase with internet slang, and being apathetic and sad in a funny way."
 
-# files in ~/.bramble/workspace/ to inject as context alongside the
+# files in ~/.bop/workspace/ to inject as context alongside the
 # system prompt. these are read fresh on every message
 context_files = ["agent.md"]
 

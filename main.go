@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hex-4/bramble/cli"
+	"github.com/Hex-4/bop/cli"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 	switch os.Args[1] {
 	case "server":
 		if len(os.Args) < 3 || os.Args[2] != "run" {
-			fmt.Println("usage: bramble server run")
+			fmt.Println("usage: bop server run")
 			os.Exit(1)
 		}
 		runServer()

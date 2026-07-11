@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hex-4/bramble/ai"
+	"github.com/Hex-4/bop/ai"
 	"github.com/bwmarrin/discordgo"
 )
 

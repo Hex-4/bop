@@ -1,7 +1,7 @@
 # AGENTS.md
 
-## about bramble
-bramble is a lightweight AI agent framework in Go. it runs as a persistent daemon, connects to Discord, and lets an LLM (via OpenRouter) use tools, manage its own memory, and schedule its own tasks. single binary, TOML config, flat markdown workspace.
+## about bop
+bop is a lightweight AI agent framework in Go. it runs as a persistent daemon, connects to Discord, and lets an LLM (via OpenRouter) use tools, manage its own memory, and schedule its own tasks. single binary, TOML config, flat markdown workspace.
 
 ## about the developer
 hex4 is a middle schooler learning Go while building this. **teach Go concepts and show examples rather than just writing code.** explain *why*, not just *what*. when writing code, keep it simple — no over-engineering, no premature abstractions.
@@ -16,7 +16,7 @@ config/config.go — TOML config loading, go:embed defaults
 tools/tools.go   — Tool struct, registry, schema generation
 tools/files.go   — read_file, write_file tools
 tools/shell.go   — shell tool (os/exec)
-cli/init.go      — bramble init (first-run setup)
+cli/init.go      — bop init (first-run setup)
 ```
 
 ## conventions
@@ -24,7 +24,7 @@ cli/init.go      — bramble init (first-run setup)
 - all tool definitions follow the same pattern: `newToolName(workspaceDir string) Tool` returning a closure
 - tools are registered in `NewRegistry()` in `tools/tools.go`
 - tool schemas are built via `Tool.ToSchema()` returning `map[string]any` (OpenRouter JSON format)
-- config lives at `~/.bramble/config.toml`, workspace at `~/.bramble/workspace/`
+- config lives at `~/.bop/config.toml`, workspace at `~/.bop/workspace/`
 - agent communicates status to Discord via `StatusHandler` callbacks (not direct Discord imports)
 - `Message` struct is shared across user/assistant/tool roles, using `omitempty` for optional fields (except `Content`)
 - errors from tools are returned as content strings to the model, not Go errors (so the model can adapt)

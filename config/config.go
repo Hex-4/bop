@@ -3,7 +3,7 @@ package config
 import "github.com/BurntSushi/toml"
 
 type Config struct {
-	BrambleDir string
+	BopDir string
 	Agent      AgentConfig   `toml:"agent"`
 	Discord    DiscordConfig `toml:"discord"`
 }

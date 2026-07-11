@@ -1,4 +1,4 @@
-# bramble 🥀
+# bop 🥀
 *the hackable AI agent framework for people who'd rather make human slop*
 
 I've been hearing a lot about OpenClaw lately. OpenClaw can read your email, OpenClaw can control your smart home, OpenClaw earned me $67 trillion on Polymarket, get in on the $OPENCLAW crypto drop before it's too late, OpenClaw is AGI, OpenClaw is 1000 security vulnerabilities wrapped up into one neat npm package, etc, etc, etc. All the Twitter tech bros seemed to be JUMPING on this little weekend project made by some random dude in, of course, San Francisco. It's open source. Actively developed. And who knows, I think there are some free inference providers out there. Maybe it could finish my ELA assignment for me. Wait, I still need to do my ELA assignment.
@@ -27,7 +27,7 @@ The CLI is messy. The tools are janky. The web panel is half-baked. The OpenRout
 
 Yet I'm still *incredibly intrigued* by the original promise of OpenClaw (and, by extension, Poke, which did all this already months before OpenClaw yet didn't really make a splash). What would happen if you gave an LLM access to a wide range of tools and had it loop over and over? Would it be any useful? Would it at least be funny? Can one middle schooler with his Claude free tier account and too much time on his hands make a better product than OpenClaw?
 
-So I'm building Bramble - a simple, lightweight, polished, documented harness for your favourite LLM that connects it to Discord, the internet, and a wide variety of tools. I'm not trying to sell anything, or "change the world", or get bought up by an AI lab, just trying to experiment and do weird stuff with these funni next word predictors. And use up my OpenRouter credits. 
+So I'm building Bop - a simple, lightweight, polished, documented harness for your favourite LLM that connects it to Discord, the internet, and a wide variety of tools. I'm not trying to sell anything, or "change the world", or get bought up by an AI lab, just trying to experiment and do weird stuff with these funni next word predictors. And use up my OpenRouter credits. 
 
 And get someone to do my ELA assignment for me.
 
@@ -44,6 +44,6 @@ Woo! You made it through the dramatic expository bit! Here, I'll let you in on a
 wait, what's "security"?
 
 > [!CAUTION]
-> jokes aside, giving an LLM access to API keys, dangerous tools, and other sensitive information, and then letting it run free on the interwebs is not a good idea. **assume that the LLM ***will*** either do something stupid, or someone else will make your LLM do something stupid.** i've tried my best to build in good-ish security practices, but I'm just a middle schooler with a free-tier Claude account and less-than-average amounts of homework. please be *extremely* careful when using Bramble (as well as OpenClaw and variants!!!), and don't give your agent access to anything that would cook you if publicly released. and maybe don't let random people talk to your agent. and maybe don't hyper-publicize your agent's identity.
+> jokes aside, giving an LLM access to API keys, dangerous tools, and other sensitive information, and then letting it run free on the interwebs is not a good idea. **assume that the LLM ***will*** either do something stupid, or someone else will make your LLM do something stupid.** i've tried my best to build in good-ish security practices, but I'm just a middle schooler with a free-tier Claude account and less-than-average amounts of homework. please be *extremely* careful when using Bop (as well as OpenClaw and variants!!!), and don't give your agent access to anything that would cook you if publicly released. and maybe don't let random people talk to your agent. and maybe don't hyper-publicize your agent's identity.
 >
-> one more thing: while I've tried my best to make setup and operations as simple and straightforward as possible, bramble is a technical project. **if you are not well-versed with computing, sysadmin, and the CLI, please avoid giving Bramble access to possibly-dangerous tools, and DO NOT paste commands or prompts from untrusted or sketchy sources.**
+> one more thing: while I've tried my best to make setup and operations as simple and straightforward as possible, bop is a technical project. **if you are not well-versed with computing, sysadmin, and the CLI, please avoid giving Bop access to possibly-dangerous tools, and DO NOT paste commands or prompts from untrusted or sketchy sources.**

@@ -1,6 +1,6 @@
 (generated with Amp)
 
-# Bramble v1 Roadmap
+# Bop v1 Roadmap
 
 ## what's done
 - [x] discord bot connects, receives messages, responds
@@ -11,14 +11,14 @@
 - [x] config package stubbed (TOML parsing)
 
 ## phase 1: config-driven agent
-- [x] wire TOML config into main (load from `~/.bramble/config.toml`)
+- [x] wire TOML config into main (load from `~/.bop/config.toml`)
 - [x] move model, system prompt, provider into config
 - [x] session descriptions in config (`[agent.sessions]` map)
 - [x] inject session description into system prompt per-channel
-- [x] create `~/.bramble/` dir + default config on first run
+- [x] create `~/.bop/` dir + default config on first run
 
 ## phase 2: workspace + memory
-- [x] create `~/.bramble/workspace/` on startup
+- [x] create `~/.bop/workspace/` on startup
 - [ ] seed `memory.md` and `pending.md` on first run
   - [ ] write default `memory.md` (empty template with headers for facts/preferences)
   - [ ] write default `pending.md` (empty template for ongoing threads/tasks)
@@ -45,7 +45,7 @@
   - [x] send/edit a discord message with current tool name + status
   - [x] update the message as each tool completes
 - [x] `read_file` and `write_file` as first tools
-  - [x] `read_file`: takes `path` param, reads from `~/.bramble/workspace/<path>`, returns contents
+  - [x] `read_file`: takes `path` param, reads from `~/.bop/workspace/<path>`, returns contents
   - [x] `write_file`: takes `path` + `content`, writes to workspace, returns confirmation
   - [ ] path validation: block `..` traversal, enforce workspace scope
 
@@ -77,7 +77,7 @@
 - [ ] per-job model override (cheap model for heartbeats, smart model for reflection)
   - [ ] temporarily swap `agent.Model` for the duration of the job's execution
 - [ ] persist schedules to disk, restore on restart
-  - [ ] save jobs to `~/.bramble/schedules.json` (or TOML)
+  - [ ] save jobs to `~/.bop/schedules.json` (or TOML)
   - [ ] on startup, load and re-register all persisted jobs
   - [ ] remove one-time jobs after they fire
 - [ ] default evening reflection cron

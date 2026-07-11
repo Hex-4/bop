@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Hex-4/bramble/config"
-	"github.com/Hex-4/bramble/tools"
+	"github.com/Hex-4/bop/config"
+	"github.com/Hex-4/bop/tools"
 )
 
 type Agent struct {
@@ -168,7 +168,7 @@ func (a *Agent) assembleSystemPrompt() string {
 
 	systemPrompt := fmt.Sprintf("Current Time: %s\n", currentTime)
 	for _, filename := range a.Config.Agent.ContextFiles {
-		path := filepath.Join(a.Config.BrambleDir, "workspace", filename)
+		path := filepath.Join(a.Config.BopDir, "workspace", filename)
 		content, err := os.ReadFile(path)
 		if err != nil {
 			fmt.Printf("Error reading file %s: %v \n", path, err)

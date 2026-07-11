@@ -1,4 +1,4 @@
-module github.com/Hex-4/bramble
+module github.com/Hex-4/bop
 
 go 1.25.0
 
