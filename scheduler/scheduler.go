@@ -14,7 +14,7 @@ import (
 type Scheduler struct {
 	Cron     *cron.Cron
 	Jobs     map[string]Job
-	sendFunc func(sessionID string, text string)
+	SendFunc func(sessionID string, text string)
 	Agent    *ai.Agent
 }
 
@@ -28,12 +28,11 @@ type Job struct {
 	Silent      bool         `json:"silent"`
 }
 
-func NewScheduler(agent *ai.Agent, sendFunc func(sessionID string, text string)) *Scheduler {
+func NewScheduler(agent *ai.Agent) *Scheduler {
 	return &Scheduler{
-		Cron:     cron.New(),
-		Jobs:     make(map[string]Job),
-		sendFunc: sendFunc,
-		Agent:    agent,
+		Cron:  cron.New(),
+		Jobs:  make(map[string]Job),
+		Agent: agent,
 	}
 }
 
@@ -62,10 +61,13 @@ func newCronStatusHandler() *ai.StatusHandler {
 }
 
 func (s *Scheduler) AddCron(expression string, prompt string, sessionID string, silent bool) (string, error) {
+	jobID := generateJobID()
+	wrappedPrompt := "The following is a background cron job, not a live user message. Job ID: " + jobID + ". Use tools as normal. Execute the following: " + prompt
+
 	var cronFunc func()
 	if silent {
 		cronFunc = func() {
-			_, err := s.Agent.Ask(sessionID, prompt, newCronStatusHandler())
+			_, err := s.Agent.Ask(sessionID, wrappedPrompt, newCronStatusHandler())
 			if err != nil {
 				fmt.Printf("cron job failed: %v\n", err)
 			}
@@ -73,17 +75,21 @@ func (s *Scheduler) AddCron(expression string, prompt string, sessionID string, 
 	} else {
 		cronFunc = func() {
 			statusHandler := newCronStatusHandler()
-			response, err := s.Agent.Ask(sessionID, prompt, statusHandler)
+			response, err := s.Agent.Ask(sessionID, wrappedPrompt, statusHandler)
 			if err != nil {
 				fmt.Printf("cron job failed: %v\n", err)
-				s.sendFunc(sessionID, "⚠️ Cron job failed: "+err.Error())
+				s.SendFunc(sessionID, "⚠️ Cron job failed: "+err.Error())
 				return
 			}
-			s.sendFunc(sessionID, response+"\n-# "+statusHandler.Footer())
+			footer := statusHandler.Footer()
+			if footer != "" {
+				s.SendFunc(sessionID, response+"\n-# "+footer)
+			} else {
+				s.SendFunc(sessionID, response)
+			}
 		}
 	}
 	entryID, err := s.Cron.AddFunc(expression, cronFunc)
-	jobID := generateJobID()
 	if err != nil {
 		return "", fmt.Errorf("invalid cron expression: %w", err)
 	}
@@ -100,27 +106,33 @@ func (s *Scheduler) AddCron(expression string, prompt string, sessionID string, 
 
 func (s *Scheduler) AddOneShot(fireAt time.Time, prompt string, sessionID string, silent bool) string {
 	jobID := generateJobID()
+	wrappedPrompt := "The following is a scheduled one-shot job, not a live user message. Job ID: " + jobID + ". Use tools as normal. Execute the following: " + prompt
+
 	var oneShotFunc func()
 	if silent {
 		oneShotFunc = func() {
-			_, err := s.Agent.Ask(sessionID, prompt, newCronStatusHandler())
+			_, err := s.Agent.Ask(sessionID, wrappedPrompt, newCronStatusHandler())
 			if err != nil {
-				fmt.Printf("one shot job failed: %v\n", err)
+				fmt.Printf("one-shot job failed: %v\n", err)
 			}
 			delete(s.Jobs, jobID)
 		}
 	} else {
 		oneShotFunc = func() {
 			statusHandler := newCronStatusHandler()
-			response, err := s.Agent.Ask(sessionID, prompt, statusHandler)
+			response, err := s.Agent.Ask(sessionID, wrappedPrompt, statusHandler)
 			delete(s.Jobs, jobID)
 			if err != nil {
-				fmt.Printf("one shot job failed: %v\n", err)
-				s.sendFunc(sessionID, "⚠️ One shot job failed: "+err.Error())
+				fmt.Printf("one-shot job failed: %v\n", err)
+				s.SendFunc(sessionID, "⚠️ One-shot job failed: "+err.Error())
 				return
 			}
-			s.sendFunc(sessionID, response+"\n-# "+statusHandler.Footer())
-
+			footer := statusHandler.Footer()
+			if footer != "" {
+				s.SendFunc(sessionID, response+"\n-# "+footer)
+			} else {
+				s.SendFunc(sessionID, response)
+			}
 		}
 	}
 	time.AfterFunc(time.Until(fireAt), oneShotFunc)
@@ -138,7 +150,7 @@ func (s *Scheduler) AddOneShot(fireAt time.Time, prompt string, sessionID string
 func (s *Scheduler) RemoveJob(jobID string) error {
 	job, ok := s.Jobs[jobID]
 	if !ok {
-		return fmt.Errorf("Could not find job IF")
+		return fmt.Errorf("Could not find job ID")
 	}
 	if job.CronExpr != "" {
 		s.Cron.Remove(job.CronEntryID)

@@ -37,7 +37,8 @@ func (d *DiscordBot) Close() error {
 	return d.dg.Close()
 }
 
-func (d *DiscordBot) Send(channelID string, message string) {
+func (d *DiscordBot) Send(sessionID string, message string) {
+	channelID := strings.TrimPrefix(sessionID, "discord:")
 	d.dg.ChannelMessageSend(channelID, message)
 }
 

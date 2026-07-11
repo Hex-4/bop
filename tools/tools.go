@@ -22,7 +22,7 @@ func ArgString(args map[string]any, key string) string {
 	return v
 }
 
-func NewRegistry(workspaceDir string, composioToolSlice []Tool) map[string]Tool {
+func NewRegistry(workspaceDir string, externalToolSlice []Tool) map[string]Tool {
 	tools := map[string]Tool{
 		"read_file":      newReadFile(workspaceDir),
 		"write_file":     newWriteFile(workspaceDir),
@@ -31,7 +31,7 @@ func NewRegistry(workspaceDir string, composioToolSlice []Tool) map[string]Tool 
 		"web_fetch":      newWebFetch(workspaceDir),
 		"web_highlights": newWebHighlights(workspaceDir),
 	}
-	for _, t := range composioToolSlice {
+	for _, t := range externalToolSlice {
 		tools[t.Name] = t
 	}
 	return tools

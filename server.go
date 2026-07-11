@@ -9,6 +9,7 @@ import (
 
 	"github.com/Hex-4/bramble/ai"
 	"github.com/Hex-4/bramble/config"
+	"github.com/Hex-4/bramble/scheduler"
 	"github.com/Hex-4/bramble/tools"
 
 	"github.com/joho/godotenv"
@@ -50,7 +51,7 @@ func runServer() {
 		os.Exit(1)
 	}
 
-	composioToolsSlice, err := tools.NewComposioToolSlice(composioSessionID, composioToolSchemas)
+	externalToolsSlice, err := tools.NewComposioToolSlice(composioSessionID, composioToolSchemas)
 	if err != nil {
 		fmt.Println("error creating composio tool slice:", err)
 		os.Exit(1)
@@ -60,7 +61,12 @@ func runServer() {
 		ActiveModel: configFile.Agent.Model,
 		Config:      &configFile,
 		Sessions:    make(map[string]*ai.Session),
-		Tools:       tools.NewRegistry(filepath.Join(defaultHome, "workspace"), composioToolsSlice),
+		Tools:       tools.NewRegistry(filepath.Join(defaultHome, "workspace"), externalToolsSlice),
+	}
+
+	cronScheduler := scheduler.NewScheduler(agent)
+	for _, tool := range cronScheduler.Tools() {
+		agent.Tools[tool.Name] = tool
 	}
 
 	agent.ToolSchemas = tools.NewSchemaList(agent.Tools)
@@ -86,9 +92,12 @@ func runServer() {
 		os.Exit(1)
 	}
 
+	cronScheduler.SendFunc = discordBot.Send
+	cronScheduler.Cron.Start()
 	fmt.Println("slopster is online 🫥")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM)
 	<-sc
 	discordBot.Close()
+	cronScheduler.Cron.Stop()
 }
