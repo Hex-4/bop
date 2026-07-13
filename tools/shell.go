@@ -10,7 +10,6 @@ func newShell(workspaceDir string) Tool {
 	return Tool{
 		Name:        "shell",
 		Description: "Execute shell commands (using standard POSIX `sh`)",
-		Emoji:       "🐚",
 		Parameters: map[string]Parameter{
 			"command": {
 				Type:        "string",
@@ -23,7 +22,6 @@ func newShell(workspaceDir string) Tool {
 				Required:    false,
 			},
 		},
-		DetailParam: "command",
 		Execute: func(args map[string]any) (string, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()

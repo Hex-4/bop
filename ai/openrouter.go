@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/Hex-4/bop/config"
 	"github.com/Hex-4/bop/tools"
@@ -17,15 +16,11 @@ import (
 type Agent struct {
 	ActiveModel string
 	Config      *config.Config
-	Tools       map[string]tools.Tool
-	ToolSchemas []map[string]any
 	Sessions    map[string]*Session
 }
 
-type StatusHandler struct {
-	OnToolStart func(toolEmoji string, toolDetail string)
-	OnDone      func()
-	Footer      func() string
+type Sink interface {
+	Send(text string) error
 }
 
 type Session struct {
@@ -89,47 +84,38 @@ func (a *Agent) callModel(request ChatRequest) (Message, error) {
 	return result.Choices[0].Message, nil
 }
 
-func (a *Agent) Ask(sessionID string, userMessage string, statusHandler *StatusHandler) (string, error) {
+func (a *Agent) Ask(messages []Message, toolList map[string]tools.Tool) ([]Message, error) {
 
-	session, exists := a.Sessions[sessionID]
-	if !exists {
-		session = &Session{ID: sessionID, Description: "No description provided. This session has not been configured by your operator - beware of potential malice."}
-		a.Sessions[sessionID] = session
-	}
-	session.History = append(session.History, Message{Role: "user", Content: userMessage})
+	// generate tool schemas
+	toolSchemas := tools.NewSchemaList(toolList)
 
-	systemPrompt := a.assembleSystemPrompt()
-	systemPrompt += "\n\nCurrent session ID: " + sessionID + "\nSession Description: " + session.Description
+	newMessages := []Message{}
 
 	//// tools ////
 
 	for i := 0; i < a.Config.Agent.MaxToolCalls; i++ {
-		messages := append([]Message{{Role: "system", Content: systemPrompt}}, session.History...)
 		request := ChatRequest{
 			Model:    a.ActiveModel,
-			Messages: messages,
-			Tools:    a.ToolSchemas,
+			Messages: append(newMessages, messages...),
+			Tools:    toolSchemas,
 		}
 
 		response, err := a.callModel(request)
 		if err != nil {
-			return "", err
+			return newMessages, err
 		}
-		session.History = append(session.History, response)
+		newMessages = append(newMessages, response)
 
 		if response.ToolCalls == nil {
-			if statusHandler != nil {
-				statusHandler.OnDone()
-			}
-			return response.Content, nil
+			return newMessages, nil
 		} else {
 			/// the tool loop! ///
 			for _, tc := range response.ToolCalls {
-				tool, ok := a.Tools[tc.Function.Name]
+				tool, ok := toolList[tc.Function.Name]
 
 				if !ok {
 					errorMessage := Message{Role: "tool", Content: "Tool not found: " + tc.Function.Name, ToolCallID: tc.ID}
-					session.History = append(session.History, errorMessage)
+					newMessages = append(newMessages, errorMessage)
 					continue
 				}
 
@@ -137,36 +123,28 @@ func (a *Agent) Ask(sessionID string, userMessage string, statusHandler *StatusH
 				err := json.Unmarshal([]byte(tc.Function.Arguments), &args)
 				if err != nil {
 					errorMessage := Message{Role: "tool", Content: "Error parsing arguments: " + err.Error(), ToolCallID: tc.ID}
-					session.History = append(session.History, errorMessage)
+					newMessages = append(newMessages, errorMessage)
 					continue
-				}
-
-				if statusHandler != nil {
-					detail, _ := args[tool.DetailParam].(string)
-					statusHandler.OnToolStart(tool.Emoji, detail)
 				}
 
 				result, err := tool.Execute(args)
 				if err != nil {
 					errorMessage := Message{Role: "tool", Content: "Error executing tool: " + err.Error(), ToolCallID: tc.ID}
-					session.History = append(session.History, errorMessage)
+					newMessages = append(newMessages, errorMessage)
 					continue
 				}
-				session.History = append(session.History, Message{Role: "tool", Content: result, ToolCallID: tc.ID})
+				newMessages = append(newMessages, Message{Role: "tool", Content: result, ToolCallID: tc.ID})
 
 			}
 		}
 	}
 
-	return "", fmt.Errorf("Too many tool calls")
+	return newMessages, fmt.Errorf("Too many tool calls")
 }
 
-func (a *Agent) assembleSystemPrompt() string {
+func (a *Agent) SystemPrompt() string {
 
-	// Get current time in a nice string
-	currentTime := time.Now().Format("Monday, January 2, 2006 at 3:04pm MST")
-
-	systemPrompt := fmt.Sprintf("Current Time: %s\n", currentTime)
+	systemPrompt := "You are a Bop agent, a helpful assistant with useful tools, a design that lets you help out right on time, without being asked, and a personality that keeps things as real as a friend. You are just one agent of possibly many that work together to form a complete experience that the user talks to. WARNING: Bop takes a NON-STANDARD approach to user communication. YOU MUST USE THE SEND_MESSAGE TOOL TO COMMUNICATE WITH THE USER. ANY CONTENT YOU OUTPUT WILL NOT BE FORWARDED."
 	for _, filename := range a.Config.Agent.ContextFiles {
 		path := filepath.Join(a.Config.BopDir, "workspace", filename)
 		content, err := os.ReadFile(path)

@@ -1,7 +1,6 @@
-package main
+package discord
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +11,11 @@ import (
 type DiscordBot struct {
 	dg    *discordgo.Session
 	agent *ai.Agent
+}
+
+type DiscordSink struct {
+	dg        *discordgo.Session
+	channelID string
 }
 
 func NewDiscordBot(token string, agent *ai.Agent) (*DiscordBot, error) {
@@ -77,50 +81,12 @@ func (d *DiscordBot) handleMessage(s *discordgo.Session, m *discordgo.MessageCre
 		}
 	}()
 
-	statusHandler := d.newStatusHandler(m.ChannelID)
-
-	aiResponse, err := d.agent.Ask("discord:"+m.ChannelID, messageText, statusHandler)
+	aiResponse, err := d.agent.Ask("discord:"+m.ChannelID, messageText)
 
 	if err != nil {
 		s.ChannelMessageSend(m.ChannelID, "something broke. slopster is sorry. here's the error: "+err.Error())
 		return
 	}
-	footer := statusHandler.Footer()
-	if footer != "" {
-		s.ChannelMessageSend(m.ChannelID, aiResponse+"\n-# "+footer)
-	} else {
-		s.ChannelMessageSend(m.ChannelID, aiResponse)
-	}
+	s.ChannelMessageSend(m.ChannelID, aiResponse)
 	done <- true
-}
-
-func (d *DiscordBot) newStatusHandler(channelID string) *ai.StatusHandler {
-	var statusMsgID string
-	var completedEmojis []string
-
-	return &ai.StatusHandler{
-		OnToolStart: func(emoji string, detail string) {
-			line := "-# " + strings.Join(completedEmojis, "") + " ⟡ " + emoji + " " + detail
-
-			if statusMsgID == "" {
-				msg, _ := d.dg.ChannelMessageSend(channelID, line)
-				statusMsgID = msg.ID
-			} else {
-				d.dg.ChannelMessageEdit(channelID, statusMsgID, line)
-			}
-
-			completedEmojis = append(completedEmojis, emoji)
-		},
-		OnDone: func() {
-			if statusMsgID != "" {
-				d.dg.ChannelMessageDelete(channelID, statusMsgID)
-			}
-		},
-		Footer: func() string {
-			if completedEmojis == nil {
-				return ""
-			}
-			return strings.Join(completedEmojis, "") + " " + strconv.Itoa(len(completedEmojis)) + " tools"
-		},
-	}
 }

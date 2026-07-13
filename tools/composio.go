@@ -74,7 +74,6 @@ func NewComposioToolSlice(sessionID string, schemas []map[string]any) ([]Tool, e
 		tool := Tool{
 			Name:        slug,
 			Description: schema["description"].(string),
-			Emoji:       "🖇️",
 			RawSchema: map[string]any{
 				"type": "function",
 				"function": map[string]any{

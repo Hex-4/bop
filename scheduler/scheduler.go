@@ -3,8 +3,6 @@ package scheduler
 import (
 	"crypto/rand"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Hex-4/bop/ai"
@@ -42,24 +40,6 @@ func generateJobID() string {
 	return fmt.Sprintf("%x", b) // e.g. "a3f1b20c"
 }
 
-func newCronStatusHandler() *ai.StatusHandler {
-	var completedEmojis []string
-
-	return &ai.StatusHandler{
-		OnToolStart: func(emoji string, detail string) {
-			completedEmojis = append(completedEmojis, emoji)
-		},
-		OnDone: func() {
-		},
-		Footer: func() string {
-			if completedEmojis == nil {
-				return ""
-			}
-			return strings.Join(completedEmojis, "") + " " + strconv.Itoa(len(completedEmojis)) + " tools"
-		},
-	}
-}
-
 func (s *Scheduler) AddCron(expression string, prompt string, sessionID string, silent bool) (string, error) {
 	jobID := generateJobID()
 	wrappedPrompt := "The following is a background cron job, not a live user message. Job ID: " + jobID + ". Use tools as normal. Execute the following: " + prompt
@@ -67,26 +47,20 @@ func (s *Scheduler) AddCron(expression string, prompt string, sessionID string, 
 	var cronFunc func()
 	if silent {
 		cronFunc = func() {
-			_, err := s.Agent.Ask(sessionID, wrappedPrompt, newCronStatusHandler())
+			_, err := s.Agent.Ask(sessionID, wrappedPrompt)
 			if err != nil {
 				fmt.Printf("cron job failed: %v\n", err)
 			}
 		}
 	} else {
 		cronFunc = func() {
-			statusHandler := newCronStatusHandler()
-			response, err := s.Agent.Ask(sessionID, wrappedPrompt, statusHandler)
+			response, err := s.Agent.Ask(sessionID, wrappedPrompt)
 			if err != nil {
 				fmt.Printf("cron job failed: %v\n", err)
 				s.SendFunc(sessionID, "⚠️ Cron job failed: "+err.Error())
 				return
 			}
-			footer := statusHandler.Footer()
-			if footer != "" {
-				s.SendFunc(sessionID, response+"\n-# "+footer)
-			} else {
-				s.SendFunc(sessionID, response)
-			}
+			s.SendFunc(sessionID, response)
 		}
 	}
 	entryID, err := s.Cron.AddFunc(expression, cronFunc)
@@ -111,7 +85,7 @@ func (s *Scheduler) AddOneShot(fireAt time.Time, prompt string, sessionID string
 	var oneShotFunc func()
 	if silent {
 		oneShotFunc = func() {
-			_, err := s.Agent.Ask(sessionID, wrappedPrompt, newCronStatusHandler())
+			_, err := s.Agent.Ask(sessionID, wrappedPrompt)
 			if err != nil {
 				fmt.Printf("one-shot job failed: %v\n", err)
 			}
@@ -119,20 +93,14 @@ func (s *Scheduler) AddOneShot(fireAt time.Time, prompt string, sessionID string
 		}
 	} else {
 		oneShotFunc = func() {
-			statusHandler := newCronStatusHandler()
-			response, err := s.Agent.Ask(sessionID, wrappedPrompt, statusHandler)
+			response, err := s.Agent.Ask(sessionID, wrappedPrompt)
 			delete(s.Jobs, jobID)
 			if err != nil {
 				fmt.Printf("one-shot job failed: %v\n", err)
 				s.SendFunc(sessionID, "⚠️ One-shot job failed: "+err.Error())
 				return
 			}
-			footer := statusHandler.Footer()
-			if footer != "" {
-				s.SendFunc(sessionID, response+"\n-# "+footer)
-			} else {
-				s.SendFunc(sessionID, response)
-			}
+			s.SendFunc(sessionID, response)
 		}
 	}
 	time.AfterFunc(time.Until(fireAt), oneShotFunc)

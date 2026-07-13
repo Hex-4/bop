@@ -20,7 +20,6 @@ func newWebSearch(workspaceDir string) Tool {
 	return Tool{
 		Name:        "web_search",
 		Description: "Search the web for information",
-		Emoji:       "🔎",
 		Parameters: map[string]Parameter{
 			"query": {
 				Type:        "string",
@@ -33,7 +32,6 @@ func newWebSearch(workspaceDir string) Tool {
 				Required:    false,
 			},
 		},
-		DetailParam: "query",
 		Execute: func(args map[string]any) (string, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -100,7 +98,6 @@ func newWebFetch(_ string) Tool {
 	return Tool{
 		Name:        "web_fetch",
 		Description: "Fetch the contents of a web page. Truncates to 50kb, use web_highlights instead for factual lookups",
-		Emoji:       "🌐",
 		Parameters: map[string]Parameter{
 			"url": {
 				Type:        "string",
@@ -108,7 +105,6 @@ func newWebFetch(_ string) Tool {
 				Required:    true,
 			},
 		},
-		DetailParam: "url",
 		Execute: func(args map[string]any) (string, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -142,7 +138,6 @@ func newWebHighlights(workspaceDir string) Tool {
 	return Tool{
 		Name:        "web_highlights",
 		Description: "Get information-dense highlights from a web page for a given URL",
-		Emoji:       "📑",
 		Parameters: map[string]Parameter{
 			"url": {
 				Type:        "string",
@@ -160,7 +155,6 @@ func newWebHighlights(workspaceDir string) Tool {
 				Required:    false,
 			},
 		},
-		DetailParam: "url",
 		Execute: func(args map[string]any) (string, error) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()

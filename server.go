@@ -9,6 +9,7 @@ import (
 
 	"github.com/Hex-4/bop/ai"
 	"github.com/Hex-4/bop/config"
+	"github.com/Hex-4/bop/discord"
 	"github.com/Hex-4/bop/scheduler"
 	"github.com/Hex-4/bop/tools"
 
@@ -80,7 +81,7 @@ func runServer() {
 		agent.Sessions[session.ID] = session
 	}
 
-	discordBot, err := NewDiscordBot(token, agent)
+	discordBot, err := discord.NewDiscordBot(token, agent)
 	if err != nil {
 		fmt.Println("error creating discord bot:", err)
 		os.Exit(1)

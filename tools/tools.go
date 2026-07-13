@@ -3,10 +3,8 @@ package tools
 type Tool struct {
 	Name        string
 	Description string
-	Emoji       string
 	Parameters  map[string]Parameter // for the JSON schema sent to the model
 	RawSchema   map[string]any       // (for complex schemas)
-	DetailParam string
 	Execute     func(args map[string]any) (string, error)
 }
 
