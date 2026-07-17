@@ -16,13 +16,8 @@ import (
 type Agent struct {
 	ActiveModel string
 	Config      *config.Config
-	Sessions    map[string]*Session
+	Tools       map[string]tools.Tool
 }
-
-type Sink interface {
-	Send(text string) error
-}
-
 type Session struct {
 	ID          string
 	History     []Message
@@ -84,10 +79,17 @@ func (a *Agent) callModel(request ChatRequest) (Message, error) {
 	return result.Choices[0].Message, nil
 }
 
-func (a *Agent) Ask(messages []Message, toolList map[string]tools.Tool) ([]Message, error) {
+func (a *Agent) Ask(messages []Message, extraToolList map[string]tools.Tool) ([]Message, error) {
 
 	// generate tool schemas
-	toolSchemas := tools.NewSchemaList(toolList)
+	combinedTools := make(map[string]tools.Tool, len(a.Tools)+len(extraToolList))
+	for k, v := range a.Tools {
+		combinedTools[k] = v
+	}
+	for k, v := range extraToolList {
+		combinedTools[k] = v
+	}
+	toolSchemas := tools.NewSchemaList(combinedTools)
 
 	newMessages := []Message{}
 
@@ -96,7 +98,7 @@ func (a *Agent) Ask(messages []Message, toolList map[string]tools.Tool) ([]Messa
 	for i := 0; i < a.Config.Agent.MaxToolCalls; i++ {
 		request := ChatRequest{
 			Model:    a.ActiveModel,
-			Messages: append(newMessages, messages...),
+			Messages: append(messages, newMessages...),
 			Tools:    toolSchemas,
 		}
 
@@ -111,7 +113,7 @@ func (a *Agent) Ask(messages []Message, toolList map[string]tools.Tool) ([]Messa
 		} else {
 			/// the tool loop! ///
 			for _, tc := range response.ToolCalls {
-				tool, ok := toolList[tc.Function.Name]
+				tool, ok := combinedTools[tc.Function.Name]
 
 				if !ok {
 					errorMessage := Message{Role: "tool", Content: "Tool not found: " + tc.Function.Name, ToolCallID: tc.ID}

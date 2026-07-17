@@ -3,17 +3,21 @@ package scheduler
 import (
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Hex-4/bop/ai"
+	"github.com/Hex-4/bop/tools"
+	"github.com/Hex-4/bop/triggers"
 	"github.com/robfig/cron/v3"
 )
 
 type Scheduler struct {
-	Cron     *cron.Cron
-	Jobs     map[string]Job
-	SendFunc func(sessionID string, text string)
-	Agent    *ai.Agent
+	Cron               *cron.Cron
+	Jobs               map[string]Job
+	sessions           *triggers.SessionStore
+	ExtraToolsProvider func(channelID string) map[string]tools.Tool
+	Agent              *ai.Agent
 }
 
 type Job struct {
@@ -27,10 +31,13 @@ type Job struct {
 }
 
 func NewScheduler(agent *ai.Agent) *Scheduler {
+	sessions := triggers.SessionStore{}
+
 	return &Scheduler{
-		Cron:  cron.New(),
-		Jobs:  make(map[string]Job),
-		Agent: agent,
+		Cron:     cron.New(),
+		Jobs:     make(map[string]Job),
+		sessions: &sessions,
+		Agent:    agent,
 	}
 }
 
@@ -42,25 +49,53 @@ func generateJobID() string {
 
 func (s *Scheduler) AddCron(expression string, prompt string, sessionID string, silent bool) (string, error) {
 	jobID := generateJobID()
-	wrappedPrompt := "The following is a background cron job, not a live user message. Job ID: " + jobID + ". Use tools as normal. Execute the following: " + prompt
+	wrappedPrompt := "The following is a background cron job, not a live user message. Your history may include past iterations of this job. Job ID: " + jobID + ". Use tools as normal. Execute the following: " + prompt
 
 	var cronFunc func()
 	if silent {
 		cronFunc = func() {
-			_, err := s.Agent.Ask(sessionID, wrappedPrompt)
+			prompt := s.Agent.SystemPrompt()
+			niceTimeString := time.Now().Format("January 1 2006 at 15:04:05 MST")
+			prompt = prompt + " (current time: " + niceTimeString + ")"
+
+			history, _ := s.sessions.Load(jobID)
+			history = append(history, ai.Message{Role: "system", Content: wrappedPrompt})
+
+			messages := []ai.Message{
+				{Role: "system", Content: prompt},
+			}
+			messages = append(messages, history...)
+
+			newMessages, err := s.Agent.Ask(messages, nil)
 			if err != nil {
 				fmt.Printf("cron job failed: %v\n", err)
 			}
+			history = append(history, newMessages...)
+			s.sessions.Save(jobID, history)
 		}
 	} else {
 		cronFunc = func() {
-			response, err := s.Agent.Ask(sessionID, wrappedPrompt)
+			prompt := s.Agent.SystemPrompt()
+			niceTimeString := time.Now().Format("January 1 2006 at 15:04:05 MST")
+			prompt = prompt + " (current time: " + niceTimeString + ")"
+
+			history, _ := s.sessions.Load(jobID)
+			history = append(history, ai.Message{Role: "system", Content: wrappedPrompt})
+
+			messages := []ai.Message{
+				{Role: "system", Content: prompt},
+			}
+			messages = append(messages, history...)
+
+			channelID := strings.TrimPrefix(sessionID, "discord:")
+
+			newMessages, err := s.Agent.Ask(messages, s.ExtraToolsProvider(channelID))
 			if err != nil {
 				fmt.Printf("cron job failed: %v\n", err)
-				s.SendFunc(sessionID, "⚠️ Cron job failed: "+err.Error())
 				return
 			}
-			s.SendFunc(sessionID, response)
+			history = append(history, newMessages...)
+			s.sessions.Save(jobID, history)
 		}
 	}
 	entryID, err := s.Cron.AddFunc(expression, cronFunc)
@@ -85,22 +120,48 @@ func (s *Scheduler) AddOneShot(fireAt time.Time, prompt string, sessionID string
 	var oneShotFunc func()
 	if silent {
 		oneShotFunc = func() {
-			_, err := s.Agent.Ask(sessionID, wrappedPrompt)
+			prompt := s.Agent.SystemPrompt()
+			niceTimeString := time.Now().Format("January 1 2006 at 15:04:05 MST")
+			prompt = prompt + " (current time: " + niceTimeString + ")"
+
+			messages := []ai.Message{
+				{Role: "system", Content: prompt},
+			}
+			history, _ := s.sessions.Load(jobID)
+			history = append(history, ai.Message{Role: "system", Content: wrappedPrompt})
+			messages = append(messages, history...)
+			newMessages, err := s.Agent.Ask(messages, nil)
 			if err != nil {
 				fmt.Printf("one-shot job failed: %v\n", err)
 			}
+			history = append(history, newMessages...)
+			s.sessions.Save(jobID, history)
 			delete(s.Jobs, jobID)
 		}
 	} else {
 		oneShotFunc = func() {
-			response, err := s.Agent.Ask(sessionID, wrappedPrompt)
-			delete(s.Jobs, jobID)
+			prompt := s.Agent.SystemPrompt()
+			niceTimeString := time.Now().Format("January 1 2006 at 15:04:05 MST")
+			prompt = prompt + " (current time: " + niceTimeString + ")"
+
+			messages := []ai.Message{
+				{Role: "system", Content: prompt},
+			}
+			history, _ := s.sessions.Load(jobID)
+			history = append(history, ai.Message{Role: "system", Content: wrappedPrompt})
+			messages = append(messages, history...)
+
+			channelID := strings.TrimPrefix(sessionID, "discord:")
+
+			newMessages, err := s.Agent.Ask(messages, s.ExtraToolsProvider(channelID))
+
 			if err != nil {
 				fmt.Printf("one-shot job failed: %v\n", err)
-				s.SendFunc(sessionID, "⚠️ One-shot job failed: "+err.Error())
 				return
 			}
-			s.SendFunc(sessionID, response)
+			history = append(history, newMessages...)
+			s.sessions.Save(jobID, history)
+			delete(s.Jobs, jobID)
 		}
 	}
 	time.AfterFunc(time.Until(fireAt), oneShotFunc)

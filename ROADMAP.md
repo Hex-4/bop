@@ -1,5 +1,3 @@
-(generated with Amp)
-
 # Bop v1 Roadmap
 
 ## what's done
@@ -8,100 +6,97 @@
 - [x] agent struct with per-session conversation history
 - [x] typing indicator while thinking
 - [x] bot ignores itself, responds to DMs + @mentions
-- [x] config package stubbed (TOML parsing)
+- [x] config package (TOML parsing, go:embed defaults)
+- [x] workspace + context file injection (configurable via `context_files`)
+- [x] tool calling loop (detect tool_calls → execute → feed results → loop)
+- [x] max-iterations safeguard
+- [x] `read_file` / `write_file` tools
+- [x] `shell` tool (timeout, working directory, blocklist)
+- [x] `web_search` / `web_fetch` / `web_highlights` tools
+- [x] composio integration (dynamic external tools via composio API)
+- [x] cron + one-shot scheduling (`create_cron`, `schedule_once`, `remove_job`, `list_jobs`)
+- [x] `cli/init.go` first-run setup
 
-## phase 1: config-driven agent
-- [x] wire TOML config into main (load from `~/.bop/config.toml`)
-- [x] move model, system prompt, provider into config
-- [x] session descriptions in config (`[agent.sessions]` map)
-- [x] inject session description into system prompt per-channel
-- [x] create `~/.bop/` dir + default config on first run
+## phase R: trigger/sink refactor
 
-## phase 2: workspace + memory
-- [x] create `~/.bop/workspace/` on startup
-- [ ] seed `memory.md` and `pending.md` on first run
-  - [ ] write default `memory.md` (empty template with headers for facts/preferences)
-  - [ ] write default `pending.md` (empty template for ongoing threads/tasks)
-  - [ ] only seed if files don't already exist (don't clobber)
-- [x] inject workspace files as context (configurable via `context_files`)
-  - [x] read each file listed in `config.Agent.ContextFiles` on every message
-  - [x] prepend file contents to system prompt (or as separate system messages)
-  - [x] handle missing files gracefully (warn in logs, don't crash)
+the big architecture change. bop moves from "agent owns everything" to a clean three-primitive split: agents (brains), triggers (fire the agent, own sessions), sinks (dumb output destinations). `send_message` replaces the native response + status handler. no more `StatusHandler`.
 
-## phase 3: tool calling loop
-- [x] define tool schema format (match openrouter/openai function calling spec)
-  - [x] add `tools` field to `ChatRequest` struct (array of tool definitions)
-  - [x] add `tool_calls` field to response `Message` struct
-  - [x] define a `Tool` interface or struct: name, description, parameters schema, execute func
-- [x] agent loop: model responds → check for tool calls → execute → feed results back → loop until final text response
-  - [x] detect `tool_calls` in response (vs plain text content)
-  - [x] look up tool by name, validate params
-  - [x] execute tool, capture result as string
-  - [x] append tool result as a `role: "tool"` message with `tool_call_id`
-  - [x] re-call the model with updated messages
-  - [x] loop until response has no tool calls (just text)
-  - [x] add a max-iterations safeguard (prevent infinite loops)
-- [x] stream progress updates to discord as tools run
-  - [x] send/edit a discord message with current tool name + status
-  - [x] update the message as each tool completes
-- [x] `read_file` and `write_file` as first tools
-  - [x] `read_file`: takes `path` param, reads from `~/.bop/workspace/<path>`, returns contents
-  - [x] `write_file`: takes `path` + `content`, writes to workspace, returns confirmation
-  - [ ] path validation: block `..` traversal, enforce workspace scope
+### step 1: the contract (DONE)
+- [x] `triggers/` package with `Sink` interface (`Send(text string) error`)
+- [x] `SessionStore` in `triggers/` (in-memory, mutex-protected)
+- [x] `Agent.Ask(messages []Message, toolList map[string]tools.Tool) ([]Message, error)`
+  - agent no longer owns sessions or mutates input
+  - returns new messages to append (slice pass-by-value safe)
+  - tool loop rebuilds messages each iteration
+- [x] `Agent.SystemPrompt() string` — static agent identity (reads context files fresh)
+- [x] `send_message` tool factory in `tools/sink.go`
 
-## phase 4: more tools
-- [x] `shell` tool (sandboxed, block dangerous commands)
-  - [x] execute command via `os/exec`, capture stdout+stderr
-  - [x] blocklist of dangerous commands/patterns (`rm -rf`, `sudo`, `curl | sh`, etc.)
-  - [x] timeout per command (e.g. 30s)
-  - [x] working directory locked to workspace
-- [x] `web_search` tool
-  - [x] pick a search API (SearXNG, Brave Search, Google Custom Search)
-  - [x] return top N results as title + snippet + URL
+### step 2: discord trigger
+- [x] refactor `handleMessage` into a trigger that owns a `SessionStore`
+- [x] trigger assembles full messages slice: `agent.SystemPrompt()` + dynamic context (time, session desc) + session history + user message
+- [x] call `Ask`, append `newMessages` to session, save to store
+- [x] keep typing indicator, mention/DM filter, error-posting fallback
+- [x] temporarily keep `DiscordBot.Send(sessionID, message)` alive for cron (killed in step 3)
+- [x] fix `append(newMessages, messages...)` → `append(messages, newMessages...)` in Ask
+
+### step 3: cron trigger
+- [ ] cron gets its own `SessionStore` keyed by job ID
+- [ ] each job builds its own `DiscordSink` for its target channel
+- [ ] per-fire registry includes `send_message` (unless silent)
+- [ ] remove `DiscordBot.Send` and `cronScheduler.SendFunc` — cron uses sinks now
+- [ ] silent jobs just don't add `send_message` to the registry
+
+### step 4: verify + cleanup
+- [ ] smoke test: discord messages, mid-turn `send_message`, cron fires, session persistence
+- [ ] stupid-agent reminder: trigger inspects `newMessages` for `send_message` usage, injects system note if missing
+- [ ] kill dead code: `Agent.Sessions`, `Session` struct, old `assembleSystemPrompt`
+- [ ] fix `read_file`/`write_file` error convention (return content strings, not Go errors)
+- [ ] path validation for `read_file`/`write_file` (block `..` traversal)
+- [ ] add stupid agent reminder
+- - [ ] update `AGENTS.md` (architecture section is way out of date)
+- [ ] update `config.toml` — remove `tools_footer`
+
+## phase 5: agents.toml + subagents
+
+bop moves from one agent in config to N agents, each with its own model, system prompt, tools.
+
+- [ ] `agents.toml` parser + loader
+- [ ] each agent: model, system_prompt_file, context_files, default tools
+- [ ] triggers wired in `server.go`: `<trigger, agent, sink>` triples
+- [ ] `dispatch_subagent` tool — main agent can spawn a subagent and wait for its response
+- [ ] subagent's "return value" is a `kill(message)` that injects into the parent's history
+- [ ] subagents are fresh-session per dispatch (no retention between calls)
+- [ ] subagents write to files if they need to remember things
+
+## phase 6: librarian (auto-compaction)
+
+replaces the old `/compact` slash command. no manual compaction — the librarian fires automatically when idle + context is full.
+
+- [ ] librarian agent definition (in `agents.toml`)
+  - system prompt: "you are a librarian, extract wisdom from conversations"
+  - tools: `read_file`, `write_file` (to MEMORY/OPEN), no `send_message` (or a narrating one)
+  - fresh session per invocation
+- [ ] idle + context threshold trigger (configurable interval + threshold)
+  - default idle: ~5-10 minutes
+  - default threshold: ~60-70% of model context window
+- [ ] librarian receives the full conversation history as input
+- [ ] writes bullet points to `MEMORY.md` (facts, preferences — low churn)
+- [ ] writes active follow-ups to `OPEN.md` (high churn, get checked off)
+- [ ] trims MEMORY/OPEN if they get too long (deduplication for MEMORY, completion for OPEN)
+- [ ] MEMORY/OPEN are in the main agent's `context_files` (picked up automatically)
+- [ ] main agent's old history is cleared/trimmed after librarian runs
+
+## phase 7: composio events + more triggers
+
+- [ ] composio event triggers (fire on external events, not just cron/messages)
+- [ ] events can target any agent (not just main)
 - [ ] `ssh` tool
-  - [ ] connect to a host defined in config (don't let the agent pick arbitrary hosts)
-  - [ ] run a command, return stdout+stderr
-  - [ ] timeout + output length cap
-- [ ] `switch_model` tool (agent picks its own model mid-conversation)
-  - [ ] update `agent.Model` for the current session
-  - [ ] optionally restrict to an allowlist of models in config
+- [ ] `switch_model` tool
 
-## phase 5: cron + scheduling
-- [ ] `create_cron` tool (agent schedules recurring jobs)
-  - [ ] parse cron expression (use `robfig/cron` library)
-  - [ ] each job stores: cron expr, prompt to send, target session, optional model override
-  - [ ] register job with a cron scheduler running in the background
-- [ ] `schedule_once` tool (one-time future tasks)
-  - [ ] stores: timestamp, prompt, target session, optional model override
-  - [ ] use `time.AfterFunc` or a ticker loop to fire at the right time
-- [ ] per-job model override (cheap model for heartbeats, smart model for reflection)
-  - [ ] temporarily swap `agent.Model` for the duration of the job's execution
-- [ ] persist schedules to disk, restore on restart
-  - [ ] save jobs to `~/.bop/schedules.json` (or TOML)
-  - [ ] on startup, load and re-register all persisted jobs
-  - [ ] remove one-time jobs after they fire
-- [ ] default evening reflection cron
-  - [ ] seed a default cron job on first run (e.g. daily at 9pm)
-  - [ ] prompt tells agent to review memory.md + pending.md and update them
+## phase 8: slash commands + polish
 
-## phase 6: slash commands + polish
 - [ ] `/reset` — clear session history
-  - [ ] register discord slash command on startup
-  - [ ] handler: wipe `session.History`, confirm to user
-- [ ] `/compact` — summarize history into a shorter context
-  - [ ] send current history to model with "summarize this conversation" prompt
-  - [ ] replace history with a single system message containing the summary
 - [ ] `/model` — switch model for current session
-  - [ ] takes model name as argument
-  - [ ] validate against available models or allowlist
 - [ ] discord message chunking (2000 char limit)
-  - [ ] split long responses into multiple messages at newline boundaries
-  - [ ] preserve code blocks across splits (don't break mid-block)
 - [ ] error handling hardening (nil choices, empty responses, rate limits)
-  - [ ] check `len(result.Choices) == 0` before indexing
-  - [ ] handle HTTP 429 (rate limit) with backoff/retry
-  - [ ] handle non-200 responses with readable error messages
-- [ ] graceful shutdown (finish in-flight requests)
-  - [ ] on SIGINT/SIGTERM, stop accepting new messages
-  - [ ] wait for in-flight `ask()` calls to complete (use `sync.WaitGroup`)
-  - [ ] then close discord connection
+- [ ] graceful shutdown (finish in-flight requests via `sync.WaitGroup`)

@@ -61,24 +61,12 @@ func runServer() {
 	agent := &ai.Agent{
 		ActiveModel: configFile.Agent.Model,
 		Config:      &configFile,
-		Sessions:    make(map[string]*ai.Session),
 		Tools:       tools.NewRegistry(filepath.Join(defaultHome, "workspace"), externalToolsSlice),
 	}
 
 	cronScheduler := scheduler.NewScheduler(agent)
 	for _, tool := range cronScheduler.Tools() {
 		agent.Tools[tool.Name] = tool
-	}
-
-	agent.ToolSchemas = tools.NewSchemaList(agent.Tools)
-
-	for sessionID, sessionDescription := range configFile.Agent.SessionDescriptions {
-		session := &ai.Session{
-			ID:          sessionID,
-			Description: sessionDescription,
-			History:     make([]ai.Message, 0),
-		}
-		agent.Sessions[session.ID] = session
 	}
 
 	discordBot, err := discord.NewDiscordBot(token, agent)
@@ -93,7 +81,7 @@ func runServer() {
 		os.Exit(1)
 	}
 
-	cronScheduler.SendFunc = discordBot.Send
+	cronScheduler.ExtraToolsProvider = discordBot.ExtraTools
 	cronScheduler.Cron.Start()
 	fmt.Println("slopster is online 🫥")
 	sc := make(chan os.Signal, 1)
