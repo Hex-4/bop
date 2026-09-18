@@ -3,7 +3,9 @@
 lives in your discord, with cron, terminal, and file tools, plus composio support for connecting to like 500 apps. plus the default personality is pretty funny lol
 
 https://github.com/user-attachments/assets/af29a9f7-b0e5-42ab-aafd-918351d2fb31
+
 ![have a nice day](https://cdn.hackclub.com/01a0b1d8-4266-793b-8336-f2728674fad2/2026_09_17_0u7_kleki.png)
+
 (video also available [here](https://cdn.hackclub.com/01a0b1d8-474e-7943-957c-1b64be540077/629983619-af29a9f7-b0e5-42ab-aafd-918351d2fb31.mp4))
 
 ![image](https://cdn.hackclub.com/019fbb3b-c6bf-7ecc-a629-66a83f675055/image.png)
